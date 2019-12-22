@@ -19,13 +19,14 @@ int main()
     scene.addCube({  0.0f, 0.0f,  0.2f},
                   {  0.2f, 0.2f,  0.4f},
                   2);
-    scene.addSphere({ -0.3f, 0.2f, 0.3f}, 0.05f, 0);
+    scene.addSphere({ -0.3f, 0.2f, 0.3f}, 0.05f, 3);
 
 
     std::vector<Material> materials;
-    materials.push_back({{1.0f, 1.0f, 1.0f}});
-    materials.push_back({{0.5f, 0.0f, 1.0f}});
-    materials.push_back({{1.0f, 0.0f, 0.0f}});
+    materials.push_back({{1.0f, 1.0f, 1.0f}, false});
+    materials.push_back({{0.5f, 0.0f, 1.0f}, false});
+    materials.push_back({{1.0f, 0.0f, 0.0f}, false});
+    materials.push_back({{1.0f, 1.0f, 1.0f}, true});
 
     Ray camera_ray{{0.0f, 1.0f, -2.0f}, glm::normalize(glm::vec3{0.0f, -1.0f, 2.0f})};
     glm::vec3 offset_y_dir = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -56,7 +57,8 @@ int main()
             glm::vec3 col{0.0f, 0.0f, 0.0f};
             if (point.is_valid)
             {
-                col = materials[point.material_index].colour;
+                const Material& material = materials[point.material_index];
+                if (material.is_emissive) col = material.colour;
             }
 
             output[dy * image_width + dx] = col;
@@ -69,7 +71,11 @@ int main()
     double pxpersec = (double)(image_width * image_height) / seconds_dur;
     std::cout << "Finished in " << seconds_dur << "s (" << pxpersec << " px/sec)" << std::endl;
 
-    auto toInt = [](float x) { return (int)(x * 255.0f); };
+    auto toInt = [](float x)
+    {
+        int ret = (int)(x * 255.0f);
+        return ret >= 0 ? ret : 0;
+    };
 
     FILE *f = fopen("image.ppm", "w");
     fprintf(f, "P3\n%d %d\n%d\n", image_width, image_height, 255);

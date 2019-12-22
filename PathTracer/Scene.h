@@ -1,22 +1,11 @@
+#pragma once
+
 #include "Ray.h"
+#include "Intersection.h"
 
 #include <glm/glm.hpp>
 
-#include <array>
 #include <vector>
-
-struct Triangle
-{
-    std::array<glm::vec3, 3> points;
-    size_t material_index;
-};
-
-struct Sphere
-{
-    glm::vec3 center;
-    float radius;
-    size_t material_index;
-};
 
 class Scene
 {

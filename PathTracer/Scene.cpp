@@ -1,4 +1,5 @@
 #include "Scene.h"
+#include "Intersection.h"
 
 void Scene::addTriangle(glm::vec3 a, glm::vec3 b, glm::vec3 c, size_t material_index)
 {
@@ -36,95 +37,23 @@ void Scene::addSphere(glm::vec3 c, float radius, size_t material)
     spheres.push_back({c, radius, material});
 }
 
-bool rayTriangleIntersect(const Ray& ray, const Triangle& tri, float&t, float& u, float& v)
-{
-    glm::vec3 v0v1 = tri.points[1] - tri.points[0]; 
-    glm::vec3 v0v2 = tri.points[2] - tri.points[0];
-    glm::vec3 pvec = glm::cross(ray.direction, v0v2);
-    float det = glm::dot(v0v1, pvec);
-    const float kEpsilon = 0.0001f;
-#ifdef CULLING 
-    // if the determinant is negative the triangle is backfacing
-    // if the determinant is close to 0, the ray misses the triangle
-    if (det < kEpsilon) return false; 
-#else 
-    // ray and triangle are parallel if det is close to 0
-    if (fabs(det) < kEpsilon) return false; 
-#endif 
-    float invDet = 1 / det; 
- 
-    glm::vec3 tvec = ray.origin - tri.points[0];
-    u = glm::dot(tvec, pvec) * invDet;
-    if (u < 0 || u > 1) return false; 
- 
-    glm::vec3 qvec = glm::cross(tvec, v0v1);
-    v = glm::dot(ray.direction, qvec) * invDet;
-    if (v < 0 || u + v > 1) return false; 
- 
-    t = glm::dot(v0v2, qvec) * invDet;
- 
-    return true;
-} 
-
-bool raySphereIntersects(const Ray& ray, const Sphere& sphere, float& t)
-{
-    float t0, t1;
-    float radius2 = sphere.radius * sphere.radius;
-
-    glm::vec3 L = sphere.center - ray.origin;
-    float tca = glm::dot(L, ray.direction);
-    // if (tca < 0) return false;
-    float d2 = glm::dot(L, L) - tca * tca;
-    if (d2 > radius2) return false;
-    float thc = sqrt(radius2 - d2);
-    t0 = tca - thc;
-    t1 = tca + thc;
-
-    if (t0 > t1) std::swap(t0, t1);
-
-    if (t0 < 0)
-    {
-        t0 = t1;
-        if (t0 < 0) return false;
-    }
-
-    t = t0;
-
-    return true;
-}
-
 IntersectionPoint Scene::castRay(Ray ray)
 {
     IntersectionPoint p;
     p.is_valid = false;
-    float depth_nearest;
 
     for (auto tri : triangles)
     {
-        float t, u, v;
-        if (rayTriangleIntersect(ray, tri, t, u, v))
-        {
-            if (!p.is_valid || t < depth_nearest)
-            {
-                p.is_valid = true;
-                p.material_index = tri.material_index;
-                depth_nearest = t;
-            }
-        }
+        IntersectionPoint ip = Intersection::rayTriangleIntersect(ray, tri);
+        if (ip.is_valid && (!p.is_valid || ip.depth < p.depth))
+            p = ip;
     }
 
     for (auto& sphere : spheres)
     {
-        float t;
-        if (raySphereIntersects(ray, sphere, t))
-        {
-            if (!p.is_valid || t < depth_nearest)
-            {
-                p.is_valid = true;
-                p.material_index = sphere.material_index;
-                depth_nearest = t;
-            }
-        }
+        IntersectionPoint ip = Intersection::raySphereIntersects(ray, sphere);
+        if (ip.is_valid && (!p.is_valid || ip.depth < p.depth))
+            p = ip;
     }
 
     return p;
