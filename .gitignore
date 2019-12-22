@@ -1,0 +1,20 @@
+# Visual Studio
+.vs/
+*.vcxproj
+*.filters
+*.user
+*.sln
+*.sdf
+
+# Mac
+.DS_Store
+Makefile
+
+# Build results
+build/
+
+# Dependencies
+premake/
+
+# Generated files
+*.ppm
