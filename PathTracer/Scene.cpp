@@ -31,6 +31,11 @@ void Scene::addCube(glm::vec3 low, glm::vec3 high, size_t material)
     addQuad(llh, lhh, hhh, hlh, material);
 }
 
+void Scene::addSphere(glm::vec3 c, float radius, size_t material)
+{
+    spheres.push_back({c, radius, material});
+}
+
 bool rayTriangleIntersect(const Ray& ray, const Triangle& tri, float&t, float& u, float& v)
 {
     glm::vec3 v0v1 = tri.points[1] - tri.points[0]; 
@@ -61,6 +66,33 @@ bool rayTriangleIntersect(const Ray& ray, const Triangle& tri, float&t, float& u
     return true;
 } 
 
+bool raySphereIntersects(const Ray& ray, const Sphere& sphere, float& t)
+{
+    float t0, t1;
+    float radius2 = sphere.radius * sphere.radius;
+
+    glm::vec3 L = sphere.center - ray.origin;
+    float tca = glm::dot(L, ray.direction);
+    // if (tca < 0) return false;
+    float d2 = glm::dot(L, L) - tca * tca;
+    if (d2 > radius2) return false;
+    float thc = sqrt(radius2 - d2);
+    t0 = tca - thc;
+    t1 = tca + thc;
+
+    if (t0 > t1) std::swap(t0, t1);
+
+    if (t0 < 0)
+    {
+        t0 = t1;
+        if (t0 < 0) return false;
+    }
+
+    t = t0;
+
+    return true;
+}
+
 IntersectionPoint Scene::castRay(Ray ray)
 {
     IntersectionPoint p;
@@ -76,6 +108,20 @@ IntersectionPoint Scene::castRay(Ray ray)
             {
                 p.is_valid = true;
                 p.material_index = tri.material_index;
+                depth_nearest = t;
+            }
+        }
+    }
+
+    for (auto& sphere : spheres)
+    {
+        float t;
+        if (raySphereIntersects(ray, sphere, t))
+        {
+            if (!p.is_valid || t < depth_nearest)
+            {
+                p.is_valid = true;
+                p.material_index = sphere.material_index;
                 depth_nearest = t;
             }
         }

@@ -19,6 +19,7 @@ int main()
     scene.addCube({  0.0f, 0.0f,  0.2f},
                   {  0.2f, 0.2f,  0.4f},
                   2);
+    scene.addSphere({ -0.3f, 0.2f, 0.3f}, 0.05f, 0);
 
 
     std::vector<Material> materials;
