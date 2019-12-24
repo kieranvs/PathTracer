@@ -15,7 +15,7 @@ public:
     void addCube(glm::vec3 low, glm::vec3 high, size_t material);
     void addSphere(glm::vec3 c, float radius, size_t material);
 
-    IntersectionPoint castRay(Ray ray);
+    IntersectionPoint castRay(Ray ray) const;
 private:
     std::vector<Triangle> triangles;
     std::vector<Sphere> spheres;

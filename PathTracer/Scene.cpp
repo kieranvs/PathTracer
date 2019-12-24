@@ -37,7 +37,7 @@ void Scene::addSphere(glm::vec3 c, float radius, size_t material)
     spheres.push_back({c, radius, material});
 }
 
-IntersectionPoint Scene::castRay(Ray ray)
+IntersectionPoint Scene::castRay(Ray ray) const
 {
     IntersectionPoint p;
     p.is_valid = false;
@@ -45,14 +45,14 @@ IntersectionPoint Scene::castRay(Ray ray)
     for (auto tri : triangles)
     {
         IntersectionPoint ip = Intersection::rayTriangleIntersect(ray, tri);
-        if (ip.is_valid && (!p.is_valid || ip.depth < p.depth))
+        if (ip.is_valid && (!p.is_valid || ip.depth < p.depth) && ip.depth > 0)
             p = ip;
     }
 
     for (auto& sphere : spheres)
     {
         IntersectionPoint ip = Intersection::raySphereIntersects(ray, sphere);
-        if (ip.is_valid && (!p.is_valid || ip.depth < p.depth))
+        if (ip.is_valid && (!p.is_valid || ip.depth < p.depth) && ip.depth > 0)
             p = ip;
     }
 
