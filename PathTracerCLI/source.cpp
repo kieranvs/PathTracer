@@ -4,6 +4,48 @@
 
 #include <vector>
 #include <iostream>
+#include <thread>
+#include <cstdlib>
+
+int div_ceil(int numerator, int denominator)
+{
+    std::div_t res = std::div(numerator, denominator);
+    return res.rem ? (res.quot + 1) : res.quot;
+}
+
+void worker(const Scene& scene,
+            const std::vector<Material>& materials,
+            const Ray& camera_ray,
+            const glm::vec3& offset_x_dir,
+            const glm::vec3& offset_y_dir,
+            int image_width,
+            int image_height,
+            int thread_id,
+            int width_per_thread,
+            glm::vec3* output)
+{
+    Radiance radiance;
+
+    int start_width = thread_id * width_per_thread;
+    int end_width = (thread_id + 1) * width_per_thread;
+    if (end_width > image_width)
+        end_width = image_width;
+
+    for (int dx = start_width; dx < end_width; dx++)
+    {
+        float progress = (float(dx-start_width) / float(end_width-start_width)) * 100.0f;
+        std::cout << "tID " << thread_id << " progress: " << progress << "%" << std::endl;
+        float dxp = (float(dx) / float(image_width)) - 0.5f;
+        for (int dy = 0; dy < image_height; dy++)
+        {
+            float dyp = -((float(dy) / float(image_height)) - 0.5f);
+
+            glm::vec3 pixel_ray_dir = glm::normalize(camera_ray.direction + offset_x_dir * dxp + offset_y_dir * dyp);
+            Ray pixel_ray{camera_ray.origin, pixel_ray_dir};
+            output[dy * image_width + dx] = radiance.finalColour(scene, materials, pixel_ray, 0);
+        }
+    }
+}
 
 int main()
 {
@@ -74,31 +116,24 @@ int main()
 
     std::cout << image_width << "x" << image_height << " (" << (image_width*image_height/1000000.f) << "MP)" << std::endl;
 
+    const int num_threads = 2;
+    const int width_per_thread = div_ceil(image_width, num_threads);
+
     using clock = std::chrono::system_clock;
     const auto before = clock::now();
 
-    Radiance radiance;
+    std::vector<std::thread> threads;
+    for (int i = 0; i < num_threads; i++)
+        threads.push_back(std::thread{worker, scene, materials, camera_ray, offset_x_dir, offset_y_dir, image_width, image_height, i, width_per_thread, output});
 
-    for (int dx = 0; dx < image_width; dx++)
-    {
-        float progress = (float(dx) / float(image_width)) * 100.0f;
-        std::cout << "\rProgress: " << progress << "%" << std::flush;
-        float dxp = (float(dx) / float(image_width)) - 0.5f;
-        for (int dy = 0; dy < image_height; dy++)
-        {
-            float dyp = -((float(dy) / float(image_height)) - 0.5f);
-
-            glm::vec3 pixel_ray_dir = glm::normalize(camera_ray.direction + offset_x_dir * dxp + offset_y_dir * dyp);
-            Ray pixel_ray{camera_ray.origin, pixel_ray_dir};
-            output[dy * image_width + dx] = radiance.finalColour(scene, materials, pixel_ray, 0);
-        }
-    }
-
+    for (int i = 0; i < num_threads; i++)
+        threads[i].join();
+        
     const std::chrono::duration<double> duration = clock::now() - before;
 
     double seconds_dur = duration.count();
     double pxpersec = (double)(image_width * image_height) / seconds_dur;
-    std::cout << "\rFinished in " << seconds_dur << "s (" << pxpersec << " px/sec)" << std::endl;
+    std::cout << "Finished in " << seconds_dur << "s (" << pxpersec << " px/sec)" << std::endl;
 
     auto toInt = [](float x)
     {
