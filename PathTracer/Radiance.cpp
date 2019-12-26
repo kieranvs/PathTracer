@@ -22,7 +22,20 @@ glm::vec3 uniformSampleHemisphere(float r1, float r2)
 
 glm::vec3 Radiance::finalColour(const Scene& scene, const std::vector<Material>& materials, const Ray& pixel_ray, int depth)
 {
-    if (depth > 4) return glm::vec3(0.0f, 0.0f, 0.0f);
+    const bool use_russian_roulette = true;
+    if (depth > 4)
+    {
+        if (use_russian_roulette)
+        {
+            float r = distribution(generator);
+            if (r < 0.25)
+                return glm::vec3(0.0f, 0.0f, 0.0f);
+        }
+        else
+        {
+            return glm::vec3(0.0f, 0.0f, 0.0f);
+        }
+    }
 
     IntersectionPoint point = scene.castRay(pixel_ray);
 
