@@ -1,6 +1,7 @@
 #include <PathTracer/Scene.h>
 #include <PathTracer/Material.h>
 #include <PathTracer/Radiance.h>
+#include <PathTracer/Options.h>
 
 #include <vector>
 #include <iostream>
@@ -18,31 +19,30 @@ void worker(const Scene& scene,
             const Ray& camera_ray,
             const glm::vec3& offset_x_dir,
             const glm::vec3& offset_y_dir,
-            int image_width,
-            int image_height,
+            const Options& options,
             int thread_id,
             int width_per_thread,
             glm::vec3* output)
 {
-    Radiance radiance;
+    Radiance radiance{options};
 
     int start_width = thread_id * width_per_thread;
     int end_width = (thread_id + 1) * width_per_thread;
-    if (end_width > image_width)
-        end_width = image_width;
+    if (end_width > options.image_width)
+        end_width = options.image_width;
 
     for (int dx = start_width; dx < end_width; dx++)
     {
         float progress = (float(dx-start_width) / float(end_width-start_width)) * 100.0f;
         std::cout << "tID " << thread_id << " progress: " << progress << "%" << std::endl;
-        float dxp = (float(dx) / float(image_width)) - 0.5f;
-        for (int dy = 0; dy < image_height; dy++)
+        float dxp = (float(dx) / float(options.image_width)) - 0.5f;
+        for (int dy = 0; dy < options.image_height; dy++)
         {
-            float dyp = -((float(dy) / float(image_height)) - 0.5f);
+            float dyp = -((float(dy) / float(options.image_height)) - 0.5f);
 
             glm::vec3 pixel_ray_dir = glm::normalize(camera_ray.direction + offset_x_dir * dxp + offset_y_dir * dyp);
             Ray pixel_ray{camera_ray.origin, pixel_ray_dir};
-            output[dy * image_width + dx] = radiance.finalColour(scene, materials, pixel_ray, 0);
+            output[dy * options.image_width + dx] = radiance.finalColour(scene, materials, pixel_ray, 0);
         }
     }
 }
@@ -110,21 +110,23 @@ int main()
     glm::vec3 offset_y_dir = glm::vec3(0.0f, 1.0f, 0.0f);
     glm::vec3 offset_x_dir = glm::cross(camera_ray.direction, offset_y_dir);
 
-    int image_width = 1024;
-    int image_height = image_width * 3 / 4;
-    glm::vec3* output = new glm::vec3[image_width * image_height];
+    Options options;
 
-    std::cout << image_width << "x" << image_height << " (" << (image_width*image_height/1000000.f) << "MP)" << std::endl;
+    options.image_width = 128;
+    options.image_height = options.image_width * 3 / 4;
+    glm::vec3* output = new glm::vec3[options.image_width * options.image_height];
+
+    std::cout << options.image_width << "x" << options.image_height << " (" << (options.image_width*options.image_height/1000000.f) << "MP)" << std::endl;
 
     const int num_threads = 2;
-    const int width_per_thread = div_ceil(image_width, num_threads);
+    const int width_per_thread = div_ceil(options.image_width, num_threads);
 
     using clock = std::chrono::system_clock;
     const auto before = clock::now();
 
     std::vector<std::thread> threads;
     for (int i = 0; i < num_threads; i++)
-        threads.push_back(std::thread{worker, scene, materials, camera_ray, offset_x_dir, offset_y_dir, image_width, image_height, i, width_per_thread, output});
+        threads.push_back(std::thread{worker, scene, materials, camera_ray, offset_x_dir, offset_y_dir, options, i, width_per_thread, output});
 
     for (int i = 0; i < num_threads; i++)
         threads[i].join();
@@ -132,7 +134,7 @@ int main()
     const std::chrono::duration<double> duration = clock::now() - before;
 
     double seconds_dur = duration.count();
-    double pxpersec = (double)(image_width * image_height) / seconds_dur;
+    double pxpersec = (double)(options.image_width * options.image_height) / seconds_dur;
     std::cout << "Finished in " << seconds_dur << "s (" << pxpersec << " px/sec)" << std::endl;
 
     auto toInt = [](float x)
@@ -144,8 +146,8 @@ int main()
     };
 
     FILE *f = fopen("image.ppm", "w");
-    fprintf(f, "P3\n%d %d\n%d\n", image_width, image_height, 255);
-    for (int i = 0; i < image_width * image_height; i++)
+    fprintf(f, "P3\n%d %d\n%d\n", options.image_width, options.image_height, 255);
+    for (int i = 0; i < options.image_width * options.image_height; i++)
     {
         fprintf(f, "%d %d %d ", toInt(output[i].x), toInt(output[i].y), toInt(output[i].z));
     }

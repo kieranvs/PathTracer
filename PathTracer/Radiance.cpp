@@ -22,13 +22,12 @@ glm::vec3 uniformSampleHemisphere(float r1, float r2)
 
 glm::vec3 Radiance::finalColour(const Scene& scene, const std::vector<Material>& materials, const Ray& pixel_ray, int depth)
 {
-    const bool use_russian_roulette = true;
-    if (depth > 4)
+    if (depth > options.ray_depth_cutoff)
     {
-        if (use_russian_roulette)
+        if (options.use_russian_roulette)
         {
             float r = distribution(generator);
-            if (r < 0.25)
+            if (r < options.russian_roulette_survive_prob)
                 return glm::vec3(0.0f, 0.0f, 0.0f);
         }
         else
